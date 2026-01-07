@@ -1,0 +1,20 @@
+{
+    "name": "x-fetch-backend",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "node server.js",
+        "login": "node login.js",
+        "test-scrape": "node test-scrape.js",
+        "install-browser": "pnpm dlx playwright install chromium"
+    },
+    "dependencies": {
+        "@fastify/cors": "^10.0.2",
+        "better-sqlite3": "^11.7.0",
+        "dotenv": "^16.4.7",
+        "fastify": "^5.2.1",
+        "node-cron": "^3.0.3",
+        "playwright": "^1.49.1",
+        "resend": "^4.1.2"
+    }
+}
