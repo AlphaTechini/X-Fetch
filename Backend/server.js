@@ -7,9 +7,10 @@ import { runFetchJob, startScheduler, getSchedulerStatus } from './services/sche
 
 const fastify = Fastify({ logger: true });
 
-// CORS for frontend
+// CORS for frontend - strip trailing slash to match browser origin exactly
+const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
 await fastify.register(cors, {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: frontendUrl,
     methods: ['GET', 'POST']
 });
 
