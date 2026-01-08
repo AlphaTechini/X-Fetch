@@ -1,13 +1,13 @@
 import cron from 'node-cron';
 import { scrapeTweets } from './scraper.js';
-import { insertTweets, getTweetsSince, setLastFetchTime, getLastFetchTime } from './database.js';
 import { sendNotification } from './emailService.js';
 import { checkSession, closeBrowser } from './browser.js';
 
 let isRunning = false;
+let lastFetchTime = null;
 
 /**
- * Main fetch job
+ * Main fetch job - scrapes tweets and emails them directly
  */
 export async function runFetchJob() {
     if (isRunning) {
@@ -33,19 +33,15 @@ export async function runFetchJob() {
         const tweets = await scrapeTweets(50);
         console.log(`Scraped ${tweets.length} tweets above follower threshold`);
 
-        // Insert into database (with deduplication)
-        const newCount = insertTweets(tweets);
-        console.log(`Inserted ${newCount} new tweets (${tweets.length - newCount} duplicates)`);
-
         // Update last fetch time
-        setLastFetchTime(startTime);
+        lastFetchTime = startTime;
 
-        // Get newly added tweets for notification
-        const newTweets = getTweetsSince(startTime);
-
-        // Send notification if we have new tweets
-        if (newTweets.length > 0) {
-            await sendNotification(newTweets);
+        // Send notification with all scraped tweets
+        if (tweets.length > 0) {
+            await sendNotification(tweets);
+            console.log(`Sent email with ${tweets.length} tweets`);
+        } else {
+            console.log('No tweets found, skipping email');
         }
 
         // Close browser to free resources
@@ -53,8 +49,7 @@ export async function runFetchJob() {
 
         return {
             status: 'success',
-            scraped: tweets.length,
-            newTweets: newCount,
+            tweetCount: tweets.length,
             lastFetch: startTime
         };
 
@@ -86,10 +81,9 @@ export function startScheduler() {
  * Get scheduler status
  */
 export function getSchedulerStatus() {
-    const lastFetch = getLastFetchTime();
     return {
         running: isRunning,
-        lastFetch,
+        lastFetch: lastFetchTime,
         nextRun: getNextRunTime()
     };
 }

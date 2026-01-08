@@ -4,15 +4,11 @@
  * Run: node test-scrape.js
  */
 
-import { initDatabase, insertTweets, getRecentTweets } from './services/database.js';
 import { checkSession, closeBrowser } from './services/browser.js';
 import { scrapeTweets } from './services/scraper.js';
 
 async function test() {
     console.log('🧪 X-Fetch Scrape Test\n');
-
-    // Initialize database
-    initDatabase();
 
     // Check session
     console.log('Checking session...');
@@ -32,14 +28,9 @@ async function test() {
 
     console.log(`\n📊 Results: ${tweets.length} tweets passed filters\n`);
 
-    // Insert into database
-    const newCount = insertTweets(tweets);
-    console.log(`Inserted ${newCount} new tweets\n`);
-
-    // Show recent tweets
-    const recent = getRecentTweets(5);
-    console.log('Recent tweets in database:');
-    recent.forEach((t, i) => {
+    // Show scraped tweets
+    console.log('Scraped tweets:');
+    tweets.slice(0, 5).forEach((t, i) => {
         console.log(`${i + 1}. @${t.username} (${t.followers} followers)`);
         console.log(`   "${t.text.substring(0, 80)}..."`);
         console.log(`   ${t.url}\n`);
