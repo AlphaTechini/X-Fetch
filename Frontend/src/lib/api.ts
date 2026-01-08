@@ -22,6 +22,12 @@ export interface FetchResult {
     reason?: string;
 }
 
+export interface LoginResult {
+    success: boolean;
+    error?: string;
+    needsVerification?: boolean;
+}
+
 /**
  * Health check / wake-up ping
  */
@@ -40,6 +46,19 @@ export async function ping(): Promise<boolean> {
 export async function getSessionStatus(): Promise<SessionStatus> {
     const res = await fetch(`${API_URL}/api/session`);
     if (!res.ok) throw new Error('Failed to get session');
+    return res.json();
+}
+
+/**
+ * Login to X with credentials
+ */
+export async function login(username: string, password: string): Promise<LoginResult> {
+    const res = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) throw new Error('Login request failed');
     return res.json();
 }
 

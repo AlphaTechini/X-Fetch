@@ -4,6 +4,7 @@
     ping,
     getStatus,
     triggerFetch,
+    login,
     type StatusResponse,
     type FetchResult,
   } from "./lib/api";
@@ -14,20 +15,19 @@
   let error = $state("");
   let fetching = $state(false);
 
-  // Ping interval for cold start prevention (5 min)
+  // Login form state
+  let showLogin = $state(false);
+  let loginUsername = $state("");
+  let loginPassword = $state("");
+  let loggingIn = $state(false);
+  let loginError = $state("");
+
   const PING_INTERVAL = 5 * 60 * 1000;
 
   onMount(() => {
     loadStatus();
-
-    // Wake-up ping every 5 minutes
-    const pingInterval = setInterval(() => {
-      ping();
-    }, PING_INTERVAL);
-
-    // Refresh status every 5 minutes
+    const pingInterval = setInterval(() => ping(), PING_INTERVAL);
     const refreshInterval = setInterval(loadStatus, PING_INTERVAL);
-
     return () => {
       clearInterval(pingInterval);
       clearInterval(refreshInterval);
@@ -57,6 +57,32 @@
       fetching = false;
     }
   }
+
+  async function handleLogin() {
+    if (!loginUsername || !loginPassword) {
+      loginError = "Enter username and password";
+      return;
+    }
+
+    loggingIn = true;
+    loginError = "";
+
+    try {
+      const result = await login(loginUsername, loginPassword);
+      if (result.success) {
+        showLogin = false;
+        loginUsername = "";
+        loginPassword = "";
+        await loadStatus();
+      } else {
+        loginError = result.error || "Login failed";
+      }
+    } catch (e: any) {
+      loginError = e.message || "Login failed";
+    } finally {
+      loggingIn = false;
+    }
+  }
 </script>
 
 <main>
@@ -75,11 +101,13 @@
 
       <div class="status-row">
         <span class="label">X Session:</span>
-        <span class={status?.session?.loggedIn ? "ok" : "warn"}>
-          {status?.session?.loggedIn
-            ? `✓ ${status?.session?.username || "Connected"}`
-            : "✗ Not logged in"}
-        </span>
+        {#if status?.session?.loggedIn}
+          <span class="ok">✓ {status?.session?.username || "Connected"}</span>
+        {:else}
+          <button class="link-btn" onclick={() => (showLogin = true)}
+            >🔐 Login to X</button
+          >
+        {/if}
       </div>
 
       <div class="status-row">
@@ -106,11 +134,50 @@
       </div>
     </section>
 
+    <!-- Login Modal -->
+    {#if showLogin}
+      <div class="modal-overlay" onclick={() => (showLogin = false)}>
+        <div class="modal" onclick={(e) => e.stopPropagation()}>
+          <h2>🔐 Login to X</h2>
+          <p class="modal-desc">Enter your X credentials to enable scraping.</p>
+
+          <input
+            type="text"
+            placeholder="Username or email"
+            bind:value={loginUsername}
+            disabled={loggingIn}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            bind:value={loginPassword}
+            disabled={loggingIn}
+            onkeydown={(e) => e.key === "Enter" && handleLogin()}
+          />
+
+          {#if loginError}
+            <p class="error-text">{loginError}</p>
+          {/if}
+
+          <div class="modal-buttons">
+            <button
+              class="secondary"
+              onclick={() => (showLogin = false)}
+              disabled={loggingIn}>Cancel</button
+            >
+            <button onclick={handleLogin} disabled={loggingIn}>
+              {loggingIn ? "⏳ Logging in..." : "Login"}
+            </button>
+          </div>
+
+          <p class="modal-note">⚠️ 2FA must be disabled for this to work.</p>
+        </div>
+      </div>
+    {/if}
+
     <section class="action-card">
       <h2>Manual Fetch</h2>
-      <p class="description">
-        Scrape developer tweets and send to your email immediately.
-      </p>
+      <p class="description">Scrape developer tweets and send to your email.</p>
 
       <button
         onclick={handleFetch}
@@ -120,9 +187,7 @@
       </button>
 
       {#if !status?.session?.loggedIn}
-        <p class="warn-text">
-          ⚠️ You need to log in to X first. Run <code>pnpm login</code> on the server.
-        </p>
+        <p class="warn-text">⚠️ Login to X first using the button above.</p>
       {/if}
 
       {#if lastResult}
@@ -141,10 +206,9 @@
     <section class="info-card">
       <h2>How it works</h2>
       <ul>
-        <li>🔍 Scrapes your X "For You" timeline every hour</li>
-        <li>🎯 Filters for developer-related tweets (5K+ followers)</li>
-        <li>📧 Sends matching tweets directly to your email</li>
-        <li>⏰ Runs automatically on Render (hourly cron)</li>
+        <li>🔍 Scrapes your X "For You" timeline hourly</li>
+        <li>🎯 Filters for dev tweets (5K+ followers)</li>
+        <li>📧 Sends matches directly to your email</li>
       </ul>
     </section>
   {/if}
@@ -166,7 +230,6 @@
     font-size: 2rem;
     margin: 0;
   }
-
   h2 {
     font-size: 1.1rem;
     margin: 0 0 1rem 0;
@@ -177,14 +240,12 @@
     color: #888;
     margin: 0.5rem 0;
   }
-
   .loading,
   .error {
     text-align: center;
     padding: 2rem;
     color: #888;
   }
-
   .error {
     color: #ef4444;
   }
@@ -199,10 +260,10 @@
   .status-row {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 0.5rem 0;
     border-bottom: 1px solid #333;
   }
-
   .status-row:last-of-type {
     border-bottom: none;
   }
@@ -210,13 +271,24 @@
   .label {
     color: #888;
   }
-
   .ok {
     color: #4ade80;
   }
-
   .warn {
     color: #f59e0b;
+  }
+
+  .link-btn {
+    background: transparent;
+    border: 1px solid #1d9bf0;
+    color: #1d9bf0;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .link-btn:hover {
+    background: rgba(29, 155, 240, 0.1);
   }
 
   .description {
@@ -226,7 +298,6 @@
   }
 
   button {
-    width: 100%;
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
     background: #1d9bf0;
@@ -234,16 +305,17 @@
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    transition: background 0.2s;
   }
-
   button:hover:not(:disabled) {
     background: #1a8cd8;
   }
-
   button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .action-card button {
+    width: 100%;
   }
 
   .warn-text {
@@ -251,12 +323,10 @@
     font-size: 0.85rem;
     margin: 1rem 0 0 0;
   }
-
-  code {
-    background: #333;
-    padding: 0.2rem 0.4rem;
-    border-radius: 4px;
+  .error-text {
+    color: #ef4444;
     font-size: 0.85rem;
+    margin: 0.5rem 0;
   }
 
   .result {
@@ -265,17 +335,14 @@
     border-radius: 6px;
     text-align: center;
   }
-
   .result.success {
     background: rgba(74, 222, 128, 0.1);
     color: #4ade80;
   }
-
   .result.error {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
   }
-
   .result.skipped {
     background: rgba(245, 158, 11, 0.1);
     color: #f59e0b;
@@ -285,9 +352,76 @@
     margin: 0;
     padding-left: 1.25rem;
   }
-
   .info-card li {
     padding: 0.4rem 0;
     color: #aaa;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .modal {
+    background: #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 360px;
+  }
+
+  .modal h2 {
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+  .modal-desc {
+    color: #888;
+    text-align: center;
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+  }
+
+  .modal input {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #0a0a0a;
+    color: white;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+  .modal input:focus {
+    outline: none;
+    border-color: #1d9bf0;
+  }
+
+  .modal-buttons {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  .modal-buttons button {
+    flex: 1;
+  }
+  .modal-buttons .secondary {
+    background: #333;
+  }
+  .modal-buttons .secondary:hover {
+    background: #444;
+  }
+
+  .modal-note {
+    color: #666;
+    font-size: 0.8rem;
+    text-align: center;
+    margin: 1rem 0 0 0;
   }
 </style>
