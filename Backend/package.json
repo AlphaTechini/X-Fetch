@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
-        "build": "pnpm exec playwright install chromium --with-deps",
+        "build": "pnpm exec playwright install chromium",
         "dev": "node server.js",
         "start": "node server.js",
         "login": "node login.js",
