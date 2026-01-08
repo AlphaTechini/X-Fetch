@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import 'dotenv/config';
 
-import { checkSession, loginToX, closeBrowser } from './services/browser.js';
+import { checkSession, importCookies, closeBrowser } from './services/browser.js';
 import { runFetchJob, startScheduler, getSchedulerStatus } from './services/scheduler.js';
 
 const fastify = Fastify({ logger: true });
@@ -29,18 +29,17 @@ fastify.get('/api/session', async () => {
     return session;
 });
 
-// Login to X with credentials
-fastify.post('/api/login', async (request) => {
-    const { username, password } = request.body || {};
+// Import cookies (paste from browser)
+fastify.post('/api/import-cookies', async (request) => {
+    const { cookies } = request.body || {};
 
-    if (!username || !password) {
-        return { success: false, error: 'Username and password required' };
+    if (!cookies) {
+        return { success: false, error: 'No cookies provided' };
     }
 
-    console.log(`Login attempt for: ${username}`);
-    const result = await loginToX(username, password);
+    console.log('Importing cookies...');
+    const result = await importCookies(cookies);
 
-    // Close browser after login to free memory
     if (result.success) {
         await closeBrowser();
     }
@@ -75,11 +74,11 @@ try {
     startScheduler();
 
     console.log('\n📋 API Endpoints:');
-    console.log('  GET  /health        - Health check');
-    console.log('  GET  /api/session   - Check X login status');
-    console.log('  POST /api/login     - Login to X with credentials');
-    console.log('  POST /api/fetch-now - Trigger manual fetch');
-    console.log('  GET  /api/status    - Overall status');
+    console.log('  GET  /health             - Health check');
+    console.log('  GET  /api/session        - Check X login status');
+    console.log('  POST /api/import-cookies - Import X cookies');
+    console.log('  POST /api/fetch-now      - Trigger manual fetch');
+    console.log('  GET  /api/status         - Overall status');
 
 } catch (err) {
     fastify.log.error(err);

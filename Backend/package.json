@@ -3,10 +3,11 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
+        "build": "pnpm exec playwright install chromium --with-deps",
         "dev": "node server.js",
+        "start": "node server.js",
         "login": "node login.js",
-        "test-scrape": "node test-scrape.js",
-        "install-browser": "pnpm dlx playwright install chromium"
+        "test-scrape": "node test-scrape.js"
     },
     "dependencies": {
         "@fastify/cors": "^10.0.2",

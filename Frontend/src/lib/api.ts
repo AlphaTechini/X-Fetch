@@ -22,10 +22,11 @@ export interface FetchResult {
     reason?: string;
 }
 
-export interface LoginResult {
+export interface ImportResult {
     success: boolean;
+    username?: string;
+    cookieCount?: number;
     error?: string;
-    needsVerification?: boolean;
 }
 
 /**
@@ -50,20 +51,20 @@ export async function getSessionStatus(): Promise<SessionStatus> {
 }
 
 /**
- * Login to X with credentials
+ * Import cookies
  */
-export async function login(username: string, password: string): Promise<LoginResult> {
-    const res = await fetch(`${API_URL}/api/login`, {
+export async function importCookies(cookies: string): Promise<ImportResult> {
+    const res = await fetch(`${API_URL}/api/import-cookies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ cookies })
     });
-    if (!res.ok) throw new Error('Login request failed');
+    if (!res.ok) throw new Error('Import request failed');
     return res.json();
 }
 
 /**
- * Trigger manual fetch (scrapes and emails)
+ * Trigger manual fetch
  */
 export async function triggerFetch(): Promise<FetchResult> {
     const res = await fetch(`${API_URL}/api/fetch-now`, { method: 'POST' });
